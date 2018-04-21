@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using UnityEngine;
 
 public partial class GreenWorld : MonoBehaviour
@@ -42,7 +40,40 @@ public partial class GreenWorld : MonoBehaviour
         }
     }
 
-    private List<KeyValuePair<int, byte[]>> GetMessageData(byte[] buffer, long length)//type identifier/json
+    /// <summary>
+    /// Returns 8 bytes wich contain the message typeIdentifier
+    /// </summary>
+    /// <param name="stream"></param>
+    /// <param name="messageTypeIdentifier"></param>
+    /// <param name="messageLength"></param>
+    /// <returns></returns>
+    private byte[] GetHeaderData(int messageTypeIdentifier, int messageLength)
+    {
+        byte[] headerBuffer = new byte[8];
+        headerBuffer[0] = (byte)messageTypeIdentifier;
+        headerBuffer[1] = (byte)(messageTypeIdentifier >> 8);
+        headerBuffer[2] = (byte)(messageTypeIdentifier >> 16);
+        headerBuffer[3] = (byte)(messageTypeIdentifier >> 24);
+        headerBuffer[4] = (byte)messageLength;
+        headerBuffer[5] = (byte)(messageLength >> 8);
+        headerBuffer[6] = (byte)(messageLength >> 16);
+        headerBuffer[7] = (byte)(messageLength >> 24);
+        return headerBuffer;
+    }
+
+    /// <summary>
+    /// Sends a world message with a certain 
+    /// </summary>
+    /// <param name="worldMessage"></param>
+    /// <param name="messageTypeIdentifier"></param>
+    public void SendWorldMessage(AdapterListener adapterListener, byte[] worldMessage, int messageTypeIdentifier)
+    {
+        byte[] headerBytes = GetHeaderData(messageTypeIdentifier, worldMessage.Length);
+        adapterListener.WriteData(headerBytes);
+        adapterListener.WriteData(worldMessage);
+    }
+
+    private List<KeyValuePair<int, byte[]>> GetMessageData(byte[] buffer, long length)
     {
         List<KeyValuePair<int, byte[]>> messageDatas = new List<KeyValuePair<int, byte[]>>();
         int cPos = 0;

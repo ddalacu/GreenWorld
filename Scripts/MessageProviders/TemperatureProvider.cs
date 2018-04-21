@@ -13,5 +13,6 @@ public class TemperatureProvider : WorldMessageProvider
     public override void HandleMessage(GreenWorld world, GreenWorld.AdapterListener adapterListener, byte[] data)
     {
         Debug.Log(Encoding.ASCII.GetString(data));
+        world.SendWorldMessage(adapterListener, Encoding.ASCII.GetBytes("hello too"), GetTypeIdentifier());
     }
 }

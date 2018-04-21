@@ -140,6 +140,21 @@ public partial class GreenWorld
             return null;
         }
 
+        public void WriteData(byte[] data)
+        {
+            lock (clientLock)
+            {
+                if (client == null || client.Connected == false)
+                {
+                    return;
+                }
+
+                NetworkStream networkStream = client.GetStream();
+                networkStream.Write(data, 0, data.Length);
+                Debug.Log("sent" + data.Length);
+            }
+        }
+
         public void Close()
         {
             if (listenThread != null && listenThread.IsAlive)
