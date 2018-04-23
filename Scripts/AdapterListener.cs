@@ -151,7 +151,6 @@ public partial class GreenWorld
 
                 NetworkStream networkStream = client.GetStream();
                 networkStream.Write(data, 0, data.Length);
-                Debug.Log("sent" + data.Length);
             }
         }
 
