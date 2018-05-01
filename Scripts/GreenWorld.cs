@@ -114,13 +114,21 @@ public partial class GreenWorld : MonoBehaviour
 
             foreach (var message in GetMessageData(data, length))
             {
+                bool handled = false;
                 int providersCount = messageProviders.Count;
                 for (int i = 0; i < providersCount; i++)
                 {
                     if (messageProviders[i].GetTypeIdentifier() == message.Key)
                     {
                         messageProviders[i].HandleMessage(this, item, message.Value);
+                        handled = true;
+                        break;
                     }
+                }
+
+                if (handled == false)
+                {
+                    Debug.LogError($"Message with id {message.Key} have no listener!");
                 }
             }
 

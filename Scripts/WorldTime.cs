@@ -25,7 +25,13 @@ public class WorldTime : MonoBehaviour
     public float minAmbientPoint = -0.2f;
 
     public Vector3 rotateSpeed;
+    public Vector3 initialSunRotation;
     public Vector3 offsetRotation;
+
+    private void Awake()
+    {
+        sunLight.transform.localRotation = Quaternion.Euler(initialSunRotation);
+    }
 
     private void Update()
     {
