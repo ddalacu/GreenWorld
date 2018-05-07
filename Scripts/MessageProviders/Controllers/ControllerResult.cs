@@ -1,7 +1,7 @@
 ﻿
 public enum ControllerResult
 {
-    Completed,
-    Busy,
-    Fail
+    Completed = 1,
+    Busy = 3,
+    Fail = 4
 }

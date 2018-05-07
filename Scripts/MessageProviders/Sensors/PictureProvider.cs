@@ -15,7 +15,7 @@ public class PictureProvider : WorldMessageProvider
 
     public override void HandleMessage(GreenWorld world, GreenWorld.AdapterListener adapterListener, byte[] data)
     {
-        Debug.Log(Encoding.ASCII.GetString(data));
+        Debug.Log("Taking a picture");
 
         pictureCamera.forceIntoRenderTexture = true;
         pictureCamera.targetTexture =  RenderTexture.GetTemporary(pictureCamera.pixelWidth, pictureCamera.pixelHeight, 0, RenderTextureFormat.ARGB32);
@@ -30,8 +30,6 @@ public class PictureProvider : WorldMessageProvider
         virtualPhoto.Apply(false, false);
         RenderTexture.active = null;
         RenderTexture.ReleaseTemporary(pictureCamera.targetTexture);
-
-       // world.SendWorldMessage(adapterListener, new byte[] { 1}, GetTypeIdentifier());
 
         world.SendWorldMessage(adapterListener, virtualPhoto.EncodeToPNG(), GetTypeIdentifier());
         DestroyImmediate(virtualPhoto,true);
