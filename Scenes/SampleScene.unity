@@ -158,11 +158,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Port: 5634
-  messageProviders:
+  _messageProviders:
+  - {fileID: 34774012}
+  - {fileID: 1257892249}
   - {fileID: 1025146276}
   - {fileID: 268338758}
-  - {fileID: 1257892249}
-  - {fileID: 34774012}
 --- !u!114 &34774011
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1656,7 +1656,7 @@ Camera:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1257892247}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_ClearFlags: 1
   m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}

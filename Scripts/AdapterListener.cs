@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using UnityEngine;
 
@@ -15,55 +12,55 @@ public partial class GreenWorld
     public class AdapterListener
     {
 
-        private TcpListener tcpListener;
+        private TcpListener _tcpListener;
 
         /// <summary>
         /// Used to 'pause' the endless loop in <see cref="Listen"/>
         /// </summary>
-        private ManualResetEvent manualResetEvent = new ManualResetEvent(false);
+        private readonly ManualResetEvent _manualResetEvent = new ManualResetEvent(false);
 
-        private TcpClient client;
+        private TcpClient _client;
 
         /// <summary>
-        /// used to lock the <see cref="clients"/>
+        /// used to lock the <see cref="_client"/>
         /// </summary>
-        private object clientLock = new object();
+        private readonly object _clientLock = new object();
 
         /// <summary>
         /// The thread used to listen
         /// </summary>
-        private Thread listenThread;
+        private Thread _listenThread;
 
         public AdapterListener(IPAddress iPAddress, int port)
         {
-            tcpListener = new TcpListener(iPAddress, port);
+            _tcpListener = new TcpListener(iPAddress, port);
         }
 
         public void StartListenThread()
         {
             Debug.Log("Starting thread " + ToString());
 
-            listenThread = new Thread(new ThreadStart(Listen));
-            listenThread.Start();
+            _listenThread = new Thread(Listen);
+            _listenThread.Start();
         }
 
         private void Listen()
         {
             try
             {
-                tcpListener.Start();//this might throw
+                _tcpListener.Start();//this might throw
                 Debug.Log("Listening to " + ToString());
                 while (true)//we have a while to allow clients to reconnect
                 {
-                    manualResetEvent.Reset();
-                    tcpListener.BeginAcceptTcpClient(new AsyncCallback(AcceptCallback), tcpListener);
-                    manualResetEvent.WaitOne();
+                    _manualResetEvent.Reset();
+                    _tcpListener.BeginAcceptTcpClient(AcceptCallback, _tcpListener);
+                    _manualResetEvent.WaitOne();
                 }
             }
             catch (Exception e)
             {
-                tcpListener = null;
-                Debug.Log(ToString() + "  " + e.ToString());
+                _tcpListener = null;
+                Debug.Log(ToString() + "  " + e);
             }
         }
         /// <summary>
@@ -72,98 +69,49 @@ public partial class GreenWorld
         /// <param name="ar"></param>
         public void AcceptCallback(IAsyncResult ar)
         {
-            manualResetEvent.Set();
-            lock (clientLock)
+            _manualResetEvent.Set();
+            lock (_clientLock)
             {
-                client = tcpListener.EndAcceptTcpClient(ar);
-                if (client != null)
+                _client = _tcpListener.EndAcceptTcpClient(ar);
+                if (_client != null)
                 {
-                    Debug.Log("Client connected " + client.Client.RemoteEndPoint.ToString());
+                    Debug.Log("Client connected " + _client.Client.RemoteEndPoint);
                 }
             }
         }
 
-        /// <summary>
-        /// Will read all the bytes from a <see cref="NetworkStream"/>
-        /// </summary>
-        /// <param name="networkStream"></param>
-        /// <param name="readSize">out</param>
-        /// <returns></returns>
-        private static byte[] GetStreamData(NetworkStream networkStream, out long readSize)
+        public NetworkStream GetStream()
         {
-            int tempBufferSize = 2048;
-            byte[] tempBuffer = new byte[tempBufferSize];//we allocate a temp buffer
-
-            //we read from the network stream into the temp buffer
-            int readBytes = networkStream.Read(tempBuffer, 0, tempBufferSize);
-
-            if (readBytes < tempBufferSize)//the read bytes are less than the temp buffer size and so we can return the temp buffer
+            lock (_clientLock)
             {
-                readSize = readBytes;
-                return tempBuffer;
+                return _client?.GetStream();
             }
-
-            //We crate a expanding buffer and add data from the network stream
-            MemoryStream memoryStream = new MemoryStream(tempBufferSize * 2);
-            memoryStream.Write(tempBuffer, 0, tempBufferSize);
-
-            while ((readBytes = networkStream.Read(tempBuffer, 0, tempBufferSize)) > 0)
-            {
-                memoryStream.Write(tempBuffer, 0, tempBufferSize);
-            }
-
-            readSize = memoryStream.Length;
-            return memoryStream.GetBuffer();
-        }
-
-        /// <summary>
-        /// Returns data from clients, we don't care who client sent it
-        /// </summary>
-        /// <returns></returns>
-        public byte[] ReadData(ref long length)
-        {
-            lock (clientLock)
-            {
-                if (client == null || client.Connected == false)
-                {
-                    return null;
-                }
-
-                NetworkStream networkStream = client.GetStream();
-
-                if (networkStream.DataAvailable)
-                {
-                    return GetStreamData(networkStream, out length);
-                }
-            }
-
-            return null;
         }
 
         public void WriteData(byte[] data)
         {
-            lock (clientLock)
+            lock (_clientLock)
             {
-                if (client == null || client.Connected == false)
+                if (_client == null || _client.Connected == false)
                 {
                     return;
                 }
 
-                NetworkStream networkStream = client.GetStream();
+                NetworkStream networkStream = _client.GetStream();
                 networkStream.Write(data, 0, data.Length);
             }
         }
 
         public void Close()
         {
-            if (listenThread != null && listenThread.IsAlive)
+            if (_listenThread != null && _listenThread.IsAlive)
             {
-                listenThread.Abort();
+                _listenThread.Abort();
             }
 
-            if (tcpListener != null)
+            if (_tcpListener != null)
             {
-                tcpListener.Stop();
+                _tcpListener.Stop();
             }
         }
     }

@@ -1,23 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using JetBrains.Annotations;
 using UnityEngine;
 
 public partial class GreenWorld : MonoBehaviour
 {
     public int Port = 5634;//set in inspector
 
-    private List<AdapterListener> adapterListeners;
+    private List<AdapterListener> _adapterListeners;
 
     [SerializeField]
-    private List<WorldMessageProvider> messageProviders = new List<WorldMessageProvider>();
+    private List<WorldMessageProvider> _messageProviders = new List<WorldMessageProvider>();
 
+    private readonly MemoryStream _bufferStream = new MemoryStream();
+
+    [UsedImplicitly]
     private void Start()
     {
         IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
 
-        adapterListeners = new List<AdapterListener>(ipHostInfo.AddressList.Length);
+        _adapterListeners = new List<AdapterListener>(ipHostInfo.AddressList.Length);
 
         for (int i = 0; i < ipHostInfo.AddressList.Length; i++)
         {
@@ -26,15 +30,16 @@ public partial class GreenWorld : MonoBehaviour
                 Debug.Log("Adapter ipv4 " + ipHostInfo.AddressList[i]);
                 AdapterListener adapterListener = new AdapterListener(ipHostInfo.AddressList[i], Port);
                 adapterListener.StartListenThread();
-                adapterListeners.Add(adapterListener);
+                _adapterListeners.Add(adapterListener);
             }
         }
 
     }
 
+    [UsedImplicitly]
     private void OnDestroy()
     {
-        foreach (var item in adapterListeners)
+        foreach (var item in _adapterListeners)
         {
             item.Close();
         }
@@ -43,7 +48,6 @@ public partial class GreenWorld : MonoBehaviour
     /// <summary>
     /// Returns 8 bytes wich contain the message typeIdentifier
     /// </summary>
-    /// <param name="stream"></param>
     /// <param name="messageTypeIdentifier"></param>
     /// <param name="messageLength"></param>
     /// <returns></returns>
@@ -64,6 +68,7 @@ public partial class GreenWorld : MonoBehaviour
     /// <summary>
     /// Sends a world message with a certain 
     /// </summary>
+    /// <param name="adapterListener"></param>
     /// <param name="worldMessage"></param>
     /// <param name="messageTypeIdentifier"></param>
     public void SendWorldMessage(AdapterListener adapterListener, byte[] worldMessage, int messageTypeIdentifier)
@@ -73,67 +78,91 @@ public partial class GreenWorld : MonoBehaviour
         adapterListener.WriteData(worldMessage);
     }
 
-    private List<KeyValuePair<int, byte[]>> GetMessageData(byte[] buffer, long length)
+    /// <summary>
+    /// Will read all the bytes from a <see cref="NetworkStream"/>
+    /// </summary>
+    /// <param name="networkStream"></param>
+    /// <param name="output"></param>
+    /// <returns></returns>
+    private static void GetStreamData(NetworkStream networkStream, MemoryStream output)
     {
-        List<KeyValuePair<int, byte[]>> messageDatas = new List<KeyValuePair<int, byte[]>>();
-        int cPos = 0;
-
-        while (cPos < length)
+        int tempBufferSize = 1024;
+        byte[] tempBuffer = new byte[tempBufferSize];
+        int readBytes;
+        while ((readBytes = networkStream.Read(tempBuffer, 0, tempBufferSize)) > 0)
         {
-            if (cPos + 8 >= length)
+            output.Write(tempBuffer, 0, readBytes);
+            if (readBytes < tempBufferSize)
             {
-                Debug.Log("Bad data!");
-            }
-
-            int typeIdentifier = (buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
-            int messageLength = (buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
-
-            if (length >= cPos + messageLength)
-            {
-                byte[] data = new byte[messageLength];
-                Array.Copy(buffer, cPos, data, 0, messageLength);
-                cPos += messageLength;
-                messageDatas.Add(new KeyValuePair<int, byte[]>(typeIdentifier, data));
-            }
-            else
-            {
-                Debug.Log("Bad data!");
+                break;
             }
         }
-
-        return messageDatas;
     }
 
     //independent of framerate
+    [UsedImplicitly]
     private void FixedUpdate()
     {
-        foreach (var item in adapterListeners)
+        
+        foreach (var item in _adapterListeners)
         {
-            long length = 0;
-            byte[] data = item.ReadData(ref length);
 
-            foreach (var message in GetMessageData(data, length))
+            NetworkStream networkStream = item.GetStream();
+
+            if(networkStream==null)
+                continue;
+
+            if (networkStream.DataAvailable)
             {
-                bool handled = false;
-                int providersCount = messageProviders.Count;
-                for (int i = 0; i < providersCount; i++)
+                GetStreamData(networkStream, _bufferStream);
+
+                while (_bufferStream.Length > 8)
                 {
-                    if (messageProviders[i].GetTypeIdentifier() == message.Key)
+                    byte[] buffer = _bufferStream.GetBuffer();
+                    int cPos = 0;
+                    int typeIdentifier = (buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
+                    int messageLength = (buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
+
+                    int end = cPos + messageLength;
+
+                    if (_bufferStream.Length <= end)
                     {
-                        messageProviders[i].HandleMessage(this, item, message.Value);
-                        handled = true;
+                        byte[] message = new byte[messageLength];
+
+                        int remaining = (int)_bufferStream.Length - end;
+                        byte[] remainingBytes = new byte[remaining];
+
+                        _bufferStream.Position = cPos;
+                        _bufferStream.Read(message, 0, messageLength);
+                        _bufferStream.Read(remainingBytes, 0, remaining);
+
+                        _bufferStream.Position = 0;
+                        _bufferStream.SetLength(0);
+                        _bufferStream.Write(remainingBytes, 0, remaining);
+                        bool handled = false;
+
+                        int providersCount = _messageProviders.Count;
+                        for (int i = 0; i < providersCount; i++)
+                        {
+                            if (_messageProviders[i].GetTypeIdentifier() == typeIdentifier)
+                            {
+                                _messageProviders[i].HandleMessage(this, item, message);
+                                handled = true;
+                                break;
+                            }
+                        }
+                        if (handled == false)
+                        {
+                            Debug.LogError($"Message with id {typeIdentifier} have no listener!");
+                        }
+                    }
+                    else
+                    {
                         break;
                     }
                 }
-
-                if (handled == false)
-                {
-                    Debug.LogError($"Message with id {message.Key} have no listener!");
-                }
             }
-
         }
-
     }
 
 }
