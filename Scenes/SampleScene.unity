@@ -158,11 +158,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Port: 5634
-  _messageProviders:
-  - {fileID: 34774012}
-  - {fileID: 1257892249}
-  - {fileID: 1025146276}
-  - {fileID: 268338758}
 --- !u!114 &34774011
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -225,8 +220,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a04dea3ad50b0b4449bc9e60e529e3dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  controllers:
+  ControllersGeneric:
   - {fileID: 1960672843}
+  GreenWorld: {fileID: 34774010}
 --- !u!1 &268338756
 GameObject:
   m_ObjectHideFlags: 0
@@ -267,7 +263,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0c90cbf2843070e4195d30013c3e6fc4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  worldTime: {fileID: 34774011}
+  WorldTime: {fileID: 34774011}
+  GreenWorld: {fileID: 34774010}
 --- !u!1 &282840810
 GameObject:
   m_ObjectHideFlags: 0
@@ -1326,6 +1323,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f5a33ec2372e4a24e84c78633523bfc5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  GreenWorld: {fileID: 34774010}
   sun: {fileID: 1526980366}
   temperatureCurve:
     serializedVersion: 2
@@ -1649,7 +1647,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 12a99407820c9c548969165b587cab5b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pictureCamera: {fileID: 1257892250}
+  PictureCamera: {fileID: 1257892250}
+  GreenWorld: {fileID: 34774010}
 --- !u!20 &1257892250
 Camera:
   m_ObjectHideFlags: 0
@@ -2509,8 +2508,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d8bb6072907100f499fb2623de68acd8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  controllerIdentifier: 4
-  jointAssembly: {fileID: 1960672842}
+  ControllerIdentifier: 1
+  JointAssembly: {fileID: 1960672842}
 --- !u!1 &2024175299
 GameObject:
   m_ObjectHideFlags: 0

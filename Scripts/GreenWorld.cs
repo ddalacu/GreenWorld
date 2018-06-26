@@ -1,18 +1,29 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using GreenProject.Messages;
 using JetBrains.Annotations;
 using UnityEngine;
 
 public partial class GreenWorld : MonoBehaviour
 {
     public int Port = 5634;//set in inspector
+    private const int HeaderLength = 12;
 
     private List<AdapterListener> _adapterListeners;
 
-    [SerializeField]
-    private List<WorldMessageProvider> _messageProviders = new List<WorldMessageProvider>();
+    private readonly List<ReceiveListener> _messageListeners = new List<ReceiveListener>();
+
+    public delegate void MessageReceived<T>(AdapterListener adapter, T networkMessage) where T : class, INetworkMessage;
+
+    public class ReceiveListener
+    {
+        public Delegate MessageReceived;
+        public Type MessageType;
+        public long MessageUniqueIdentifier;
+    }
 
     private readonly MemoryStream _bufferStream = new MemoryStream();
 
@@ -51,31 +62,64 @@ public partial class GreenWorld : MonoBehaviour
     /// <param name="messageTypeIdentifier"></param>
     /// <param name="messageLength"></param>
     /// <returns></returns>
-    private byte[] GetHeaderData(int messageTypeIdentifier, int messageLength)
+    private byte[] GetHeaderData(long messageTypeIdentifier, int messageLength)
     {
-        byte[] headerBuffer = new byte[8];
-        headerBuffer[0] = (byte)messageTypeIdentifier;
-        headerBuffer[1] = (byte)(messageTypeIdentifier >> 8);
-        headerBuffer[2] = (byte)(messageTypeIdentifier >> 16);
-        headerBuffer[3] = (byte)(messageTypeIdentifier >> 24);
-        headerBuffer[4] = (byte)messageLength;
-        headerBuffer[5] = (byte)(messageLength >> 8);
-        headerBuffer[6] = (byte)(messageLength >> 16);
-        headerBuffer[7] = (byte)(messageLength >> 24);
+        byte[] headerBuffer = new byte[HeaderLength];
+        byte index = 0;
+        headerBuffer[index++] = (byte)messageTypeIdentifier;
+        headerBuffer[index++] = (byte)(messageTypeIdentifier >> 8);
+        headerBuffer[index++] = (byte)(messageTypeIdentifier >> 16);
+        headerBuffer[index++] = (byte)(messageTypeIdentifier >> 24);
+        headerBuffer[index++] = (byte)(messageTypeIdentifier >> 32);
+        headerBuffer[index++] = (byte)(messageTypeIdentifier >> 40);
+        headerBuffer[index++] = (byte)(messageTypeIdentifier >> 48);
+        headerBuffer[index++] = (byte)(messageTypeIdentifier >> 56);
+        headerBuffer[index++] = (byte)messageLength;
+        headerBuffer[index++] = (byte)(messageLength >> 8);
+        headerBuffer[index++] = (byte)(messageLength >> 16);
+        headerBuffer[index++] = (byte)(messageLength >> 24);
         return headerBuffer;
     }
 
-    /// <summary>
-    /// Sends a world message with a certain 
-    /// </summary>
-    /// <param name="adapterListener"></param>
-    /// <param name="worldMessage"></param>
-    /// <param name="messageTypeIdentifier"></param>
-    public void SendWorldMessage(AdapterListener adapterListener, byte[] worldMessage, int messageTypeIdentifier)
+    public void SendMessage<T>(AdapterListener adapterListener, T message) where T : INetworkMessage
     {
-        byte[] headerBytes = GetHeaderData(messageTypeIdentifier, worldMessage.Length);
+        byte[] serializeData = message.SerializeData();
+        byte[] headerBytes = GetHeaderData(MessageExtensions.GetMessageUniqueIdentifier<T>(), serializeData.Length);
         adapterListener.WriteData(headerBytes);
-        adapterListener.WriteData(worldMessage);
+        adapterListener.WriteData(serializeData);
+    }
+
+
+    /// <summary>
+    /// Removes a listener
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public bool RemoveMessageListener<T>(MessageReceived<T> listener) where T : class, INetworkMessage, new()
+    {
+        int index = _messageListeners.FindIndex((a) => a.MessageReceived == (Delegate)listener);
+        if (index != -1)
+        {
+            _messageListeners.RemoveAt(index);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Adds a listener
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public void AddMessageListener<T>(MessageReceived<T> listener) where T : class, INetworkMessage, new()
+    {
+        ReceiveListener entry = new ReceiveListener
+        {
+            MessageReceived = listener,
+            MessageUniqueIdentifier = MessageExtensions.GetMessageUniqueIdentifier<T>(),
+            MessageType = typeof(T)
+        };
+
+        _messageListeners.Add(entry);
     }
 
     /// <summary>
@@ -99,67 +143,78 @@ public partial class GreenWorld : MonoBehaviour
         }
     }
 
+    private static void ReadHeader(byte[] buffer, out long typeIdentifier, out int messageLength)
+    {
+        int cPos = 0;
+        uint lo = (uint)(buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
+        uint hi = (uint)(buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
+        typeIdentifier = (long)((ulong)hi) << 32 | lo;
+        messageLength = (buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
+    }
+
     //independent of framerate
     [UsedImplicitly]
     private void FixedUpdate()
     {
-        
-        foreach (var item in _adapterListeners)
+
+        foreach (var adapterListener in _adapterListeners)
         {
 
-            NetworkStream networkStream = item.GetStream();
+            NetworkStream networkStream = adapterListener.GetStream();
 
-            if(networkStream==null)
+            if (networkStream == null)
                 continue;
 
             if (networkStream.DataAvailable)
             {
                 GetStreamData(networkStream, _bufferStream);
+            }
 
-                while (_bufferStream.Length > 8)
+            while (_bufferStream.Length >= HeaderLength)
+            {
+                byte[] buffer = _bufferStream.GetBuffer();
+                long typeIdentifier;
+                int messageLength;
+
+                ReadHeader(buffer, out typeIdentifier, out messageLength);
+
+                int end = HeaderLength + messageLength;
+
+                if (_bufferStream.Length <= end)
                 {
-                    byte[] buffer = _bufferStream.GetBuffer();
-                    int cPos = 0;
-                    int typeIdentifier = (buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
-                    int messageLength = (buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
+                    byte[] message = new byte[messageLength];
 
-                    int end = cPos + messageLength;
+                    int remaining = (int)_bufferStream.Length - end;
+                    byte[] remainingBytes = new byte[remaining];
 
-                    if (_bufferStream.Length <= end)
+                    _bufferStream.Position = HeaderLength;
+                    _bufferStream.Read(message, 0, messageLength);
+                    _bufferStream.Read(remainingBytes, 0, remaining);
+
+                    _bufferStream.Position = 0;
+                    _bufferStream.SetLength(0);
+                    _bufferStream.Write(remainingBytes, 0, remaining);
+                    bool handled = false;
+
+                    int providersCount = _messageListeners.Count;
+                    for (int i = 0; i < providersCount; i++)
                     {
-                        byte[] message = new byte[messageLength];
-
-                        int remaining = (int)_bufferStream.Length - end;
-                        byte[] remainingBytes = new byte[remaining];
-
-                        _bufferStream.Position = cPos;
-                        _bufferStream.Read(message, 0, messageLength);
-                        _bufferStream.Read(remainingBytes, 0, remaining);
-
-                        _bufferStream.Position = 0;
-                        _bufferStream.SetLength(0);
-                        _bufferStream.Write(remainingBytes, 0, remaining);
-                        bool handled = false;
-
-                        int providersCount = _messageProviders.Count;
-                        for (int i = 0; i < providersCount; i++)
+                        if (_messageListeners[i].MessageUniqueIdentifier == typeIdentifier)
                         {
-                            if (_messageProviders[i].GetTypeIdentifier() == typeIdentifier)
-                            {
-                                _messageProviders[i].HandleMessage(this, item, message);
-                                handled = true;
-                                break;
-                            }
-                        }
-                        if (handled == false)
-                        {
-                            Debug.LogError($"Message with id {typeIdentifier} have no listener!");
+                            INetworkMessage networkMessage = Activator.CreateInstance(_messageListeners[i].MessageType) as INetworkMessage;
+                            networkMessage.DeserializeData(message);
+                            _messageListeners[i].MessageReceived.DynamicInvoke(adapterListener,networkMessage);
+                            handled = true;
                         }
                     }
-                    else
+                    if (handled == false)
                     {
-                        break;
+                        Debug.LogError($"Message with id {typeIdentifier} have no listener!");
                     }
+                }
+                else
+                {
+                    break;
                 }
             }
         }

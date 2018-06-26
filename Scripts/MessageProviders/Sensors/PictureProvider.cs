@@ -2,36 +2,40 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using GreenProject.Messages;
+using JetBrains.Annotations;
 using UnityEngine;
 
-public class PictureProvider : WorldMessageProvider
+public class PictureProvider : MonoBehaviour
 {
-    public Camera pictureCamera;
+    public Camera PictureCamera;
+    public GreenWorld GreenWorld;
 
-    public override int GetTypeIdentifier()
+    [UsedImplicitly]
+    private void Awake()
     {
-        return 3;
+        GreenWorld.AddMessageListener<PictureRequestMessage>(PictureRequest);
     }
 
-    public override void HandleMessage(GreenWorld world, GreenWorld.AdapterListener adapterListener, byte[] data)
+    private void PictureRequest(GreenWorld.AdapterListener adapter, PictureRequestMessage networkMessage)
     {
-        Debug.Log("Taking a picture");
+        Debug.Log("Picture requested");
 
-        pictureCamera.forceIntoRenderTexture = true;
-        pictureCamera.targetTexture =  RenderTexture.GetTemporary(pictureCamera.pixelWidth, pictureCamera.pixelHeight, 0, RenderTextureFormat.ARGB32);
-        pictureCamera.enabled = true;
-        pictureCamera.Render();
-        pictureCamera.enabled = false;
+        PictureCamera.forceIntoRenderTexture = true;
+        PictureCamera.targetTexture = RenderTexture.GetTemporary(PictureCamera.pixelWidth, PictureCamera.pixelHeight, 0, RenderTextureFormat.ARGB32);
+        PictureCamera.enabled = true;
+        PictureCamera.Render();
+        PictureCamera.enabled = false;
 
-        RenderTexture.active = pictureCamera.targetTexture;
-        Texture2D virtualPhoto = new Texture2D(pictureCamera.pixelWidth, pictureCamera.pixelHeight, TextureFormat.RGB24, false);
+        RenderTexture.active = PictureCamera.targetTexture;
+        Texture2D virtualPhoto = new Texture2D(PictureCamera.pixelWidth, PictureCamera.pixelHeight, TextureFormat.RGB24, false);
 
-        virtualPhoto.ReadPixels(new Rect(0, 0, pictureCamera.pixelWidth, pictureCamera.pixelHeight), 0, 0);
+        virtualPhoto.ReadPixels(new Rect(0, 0, PictureCamera.pixelWidth, PictureCamera.pixelHeight), 0, 0);
         virtualPhoto.Apply(false, false);
         RenderTexture.active = null;
-        RenderTexture.ReleaseTemporary(pictureCamera.targetTexture);
+        RenderTexture.ReleaseTemporary(PictureCamera.targetTexture);
 
-        world.SendWorldMessage(adapterListener, virtualPhoto.EncodeToPNG(), GetTypeIdentifier());
-        DestroyImmediate(virtualPhoto,true);
+        GreenWorld.SendMessage(adapter, new PictureResponseMessage(virtualPhoto.EncodeToPNG()));
+        DestroyImmediate(virtualPhoto, true);
     }
 }

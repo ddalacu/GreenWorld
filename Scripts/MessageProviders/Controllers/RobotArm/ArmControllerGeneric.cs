@@ -3,26 +3,22 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ArmController : ControllerBase
+public class ArmControllerGeneric : ControllerGenericBase<ArmControllerInputData>
 {
-    public JointAssembly jointAssembly;
+    public JointAssembly JointAssembly;
 
-    public override Type GetDataType()
+    protected override void OnDoRequest(ControllerManager manager, GreenWorld world, GreenWorld.AdapterListener adapterListener, ArmControllerInputData inputData)
     {
-        return typeof(ArmControllerInputData);
-    }
-
-    protected override void OnDoRequest(ControllerManager manager, GreenWorld world, GreenWorld.AdapterListener adapterListener, object inputData)
-    {
-        if (jointAssembly.IsBuisy)
+        if (JointAssembly.IsBuisy)
         {
             manager.SendControllerResult(world, adapterListener, this, ControllerResult.Busy);
             return;
         }
-
         ArmControllerInputData armControllerInputData = inputData as ArmControllerInputData;
 
-        jointAssembly.ReachPoint((result) =>
+        Debug.Log("Reching point " + armControllerInputData);
+
+        JointAssembly.ReachPoint((result) =>
         {
             if (result)
             {
@@ -32,6 +28,6 @@ public class ArmController : ControllerBase
             {
                 manager.SendControllerResult(world, adapterListener, this, ControllerResult.Fail);
             }
-        }, new Vector3(armControllerInputData.x, armControllerInputData.y, armControllerInputData.z));
+        }, new Vector3(armControllerInputData.X, armControllerInputData.Y, armControllerInputData.Z));
     }
 }

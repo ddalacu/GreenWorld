@@ -1,106 +1,91 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using GreenProject.Controllers;
+using GreenProject.Messages;
 using UnityEngine;
 
-public class ControllerManager : WorldMessageProvider
+public class ControllerManager : MonoBehaviour
 {
-    public ControllerBase[] controllers = new ControllerBase[0];
+    public ControllerBase[] ControllersGeneric = new ControllerBase[0];
+    public GreenWorld GreenWorld;
 
     private void Start()
     {
         HashSet<ControllerBase> duplicateCheck = new HashSet<ControllerBase>();
 
-        int length = controllers.Length;
+        int length = ControllersGeneric.Length;
 
         for (int i = 0; i < length; i++)
         {
-            if (duplicateCheck.Add(controllers[i]) == false)
+            if (duplicateCheck.Add(ControllersGeneric[i]) == false)
             {
-                Debug.Log("Duplicate controller ids");
+                Debug.Log("Duplicate controllerGeneric ids");
                 break;
             }
         }
+
+        GreenWorld.AddMessageListener<ControllerInputData>(Listener);
     }
 
-    public override int GetTypeIdentifier()
+    private void Listener(GreenWorld.AdapterListener adapter, ControllerInputData inputData)
     {
-        return 4;
-    }
 
-    public override void HandleMessage(GreenWorld world, GreenWorld.AdapterListener adapterListener, byte[] data)
-    {
-        string json = Encoding.ASCII.GetString(data);
-        ControllerInputData inputId = JsonUtility.FromJson<ControllerInputData>(json);
+        Debug.Log("Got controllerGeneric message !");
 
-        int length = controllers.Length;
+        int length = ControllersGeneric.Length;
 
         for (int i = 0; i < length; i++)
         {
-            if (controllers[i].controllerIdentifier == inputId.controllerIdentifier)
+            if (ControllersGeneric[i].ControllerIdentifier == inputData.ControllerIdentifier)
             {
-                controllers[i].DoAction(this, world, adapterListener, JsonUtility.FromJson(json, controllers[i].GetDataType()));
+                ControllersGeneric[i].DoRequest(this, GreenWorld, adapter, inputData);
                 return;
             }
         }
 
-        Debug.LogError($"Request to inexistent controller { inputId.controllerIdentifier}!");
+        Debug.LogError($"Request to inexistent controllerGeneric { inputData.ControllerIdentifier}!");
     }
 
+    [System.Serializable]
     public class ControllerOutputData
     {
-        public int controllerIdentifier;
+        public int ControllerIdentifier;
 
         [SerializeField]
-        protected int outputType;
+        protected int OutputType;
     }
 
+    //tells the result of a controllerGeneric request
     public class ControllerResultInfo : ControllerOutputData
     {
-        public ControllerResult result;
+        public ControllerResult Result;
 
         public ControllerResultInfo()
         {
-            outputType = 1;
+            OutputType = 1;
         }
     }
 
+    //tells the progress of a controllerGeneric request
     public class ControllerProgressInfo : ControllerOutputData
     {
-        public float progress;
+        public float Progress;
 
         public ControllerProgressInfo()
         {
-            outputType = 2;
+            OutputType = 2;
         }
     }
 
-    public void SendControllerResult(GreenWorld world, GreenWorld.AdapterListener adapterListener, ControllerBase controller, ControllerResult controllerResult)
+    public void SendControllerResult<TData>(GreenWorld world, GreenWorld.AdapterListener adapterListener, ControllerGenericBase<TData> controllerGeneric, ControllerResult controllerResult) where TData : ControllerInputData
     {
-        ControllerResultInfo controllerResultInfo = new ControllerResultInfo()
-        {
-            controllerIdentifier = controller.controllerIdentifier,
-            result = controllerResult
-        };
-
-        Send(world, adapterListener, controllerResultInfo);
+        world.SendMessage(adapterListener, new ControllerResultMessage(controllerResult, controllerGeneric.ControllerIdentifier));
     }
 
-    public void SendControllerProgress(GreenWorld world, GreenWorld.AdapterListener adapterListener, ControllerBase controller, float progress)
+    public void SendControllerProgress<TData>(GreenWorld world, GreenWorld.AdapterListener adapterListener, ControllerGenericBase<TData> controllerGeneric, float progress) where TData : ControllerInputData
     {
-        ControllerProgressInfo controllerProgressInfo = new ControllerProgressInfo()
-        {
-            controllerIdentifier = controller.controllerIdentifier,
-            progress = progress
-        };
-
-        Send(world, adapterListener, controllerProgressInfo);
+        world.SendMessage(adapterListener, new ControllerProgressMessage(progress, controllerGeneric.ControllerIdentifier));
     }
-
-    private void Send(GreenWorld world, GreenWorld.AdapterListener adapterListener, object obj)
-    {
-        string json = JsonUtility.ToJson(obj);
-        world.SendWorldMessage(adapterListener, Encoding.ASCII.GetBytes(json), GetTypeIdentifier());
-    }
-
 }

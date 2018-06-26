@@ -2,14 +2,13 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using GreenProject.Sensors.Temperature;
+using JetBrains.Annotations;
 using UnityEngine;
 
-public class TemperatureProvider : WorldMessageProvider
+public class TemperatureProvider : MonoBehaviour
 {
-    public override int GetTypeIdentifier()
-    {
-        return 112;
-    }
+    public GreenWorld GreenWorld;
 
     public Light sun;
 
@@ -23,12 +22,24 @@ public class TemperatureProvider : WorldMessageProvider
     private float temperature = 0;
     private float lastVariation = 0;
 
+    private void Awake()
+    {
+        GreenWorld.AddMessageListener<GetTemperatureMessage>(TemperatureRequestListener);
+    }
+
+    private void TemperatureRequestListener(GreenWorld.AdapterListener adapter, GetTemperatureMessage networkMessage)
+    {
+        Debug.Log("Temperature request!");
+        GreenWorld.SendMessage(adapter, new TemperatureResponseMessage(temperature));
+    }
+
     public float GetTemperatureFromColorWarmth(Color color)
     {
         float warmth = color.r + color.g + color.b;
         return warmth / 3;
     }
 
+    [UsedImplicitly]
     private void Update()
     {
         float variation = UnityEngine.Random.Range(-temperatureVariation / 2, temperatureVariation / 2) * temperatureMultiplier;
@@ -37,11 +48,5 @@ public class TemperatureProvider : WorldMessageProvider
 
         temperature = Mathf.Lerp(temperature, cTemp + lastVariation, Time.deltaTime);
         lastVariation = Mathf.Lerp(lastVariation, variation, 0.5f);
-    }
-
-    public override void HandleMessage(GreenWorld world, GreenWorld.AdapterListener adapterListener, byte[] data)
-    {
-        Debug.Log(Encoding.ASCII.GetString(data));
-        world.SendWorldMessage(adapterListener, BitConverter.GetBytes(temperature), GetTypeIdentifier());
     }
 }

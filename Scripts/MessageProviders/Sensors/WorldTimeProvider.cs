@@ -2,20 +2,24 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using GreenProject.Messages;
+using JetBrains.Annotations;
 using UnityEngine;
 
-public class WorldTimeProvider : WorldMessageProvider
+public class WorldTimeProvider : MonoBehaviour
 {
-    public WorldTime worldTime;
+    public WorldTime WorldTime;
+    public GreenWorld GreenWorld;
 
-    public override int GetTypeIdentifier()
+    [UsedImplicitly]
+    private void Awake()
     {
-        return 2;
+        GreenWorld.AddMessageListener<TimeRequestMessage>(RequestedTime);
     }
 
-    public override void HandleMessage(GreenWorld world, GreenWorld.AdapterListener adapterListener, byte[] data)
+    private void RequestedTime(GreenWorld.AdapterListener adapterListener, TimeRequestMessage networkmessage)
     {
-        Debug.Log(Encoding.ASCII.GetString(data));
-        world.SendWorldMessage(adapterListener, BitConverter.GetBytes(worldTime.CurrentTime.ToBinary()), GetTypeIdentifier());
+        Debug.Log("Time was requested!");
+        GreenWorld.SendMessage(adapterListener, new TimeResponseMessage(WorldTime.CurrentTime));
     }
 }
