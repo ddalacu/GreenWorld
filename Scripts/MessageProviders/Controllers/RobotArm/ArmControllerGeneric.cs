@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using GreenProject.Controllers;
 using UnityEngine;
 
 public class ArmControllerGeneric : ControllerGenericBase<ArmControllerInputData>
@@ -14,9 +12,14 @@ public class ArmControllerGeneric : ControllerGenericBase<ArmControllerInputData
             manager.SendControllerResult(world, adapterListener, this, ControllerResult.Busy);
             return;
         }
-        ArmControllerInputData armControllerInputData = inputData as ArmControllerInputData;
 
-        Debug.Log("Reching point " + armControllerInputData);
+        if (inputData == null)
+        {
+            Debug.LogError("Null armControllerInputData!");
+            return;
+        }
+
+        Debug.Log("Reching point " + inputData);
 
         JointAssembly.ReachPoint((result) =>
         {
@@ -28,6 +31,6 @@ public class ArmControllerGeneric : ControllerGenericBase<ArmControllerInputData
             {
                 manager.SendControllerResult(world, adapterListener, this, ControllerResult.Fail);
             }
-        }, new Vector3(armControllerInputData.X, armControllerInputData.Y, armControllerInputData.Z));
+        }, new Vector3(inputData.X, inputData.Y, inputData.Z));
     }
 }

@@ -14,10 +14,10 @@ public class PictureProvider : MonoBehaviour
     [UsedImplicitly]
     private void Awake()
     {
-        GreenWorld.AddMessageListener<PictureRequestMessage>(PictureRequest);
+        GreenWorld.AddMessageListener(PictureRequest,typeof(PictureRequestMessage));
     }
 
-    private void PictureRequest(GreenWorld.AdapterListener adapter, PictureRequestMessage networkMessage)
+    private void PictureRequest(GreenWorld.AdapterListener adapter, INetworkMessage message)
     {
         Debug.Log("Picture requested");
 

@@ -15,7 +15,7 @@ namespace GreenProject.Messages
     public static class MessageExtensions
     {
         //https://www.codeproject.com/Articles/34309/Convert-String-to-bit-Integer
-        private static Int64 GetInt64HashCode(string strText)
+        public static Int64 GetInt64HashCode(string strText)
         {
             Int64 hashCode = 0;
             if (!string.IsNullOrEmpty(strText))
@@ -38,10 +38,6 @@ namespace GreenProject.Messages
             return (hashCode);
         }
 
-        public static long GetMessageUniqueIdentifier<T>() where T : INetworkMessage
-        {
-            return GetInt64HashCode(typeof(T).FullName);
-        }
     }
 
 }

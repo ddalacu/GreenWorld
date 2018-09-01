@@ -94,6 +94,7 @@ public partial class GreenWorld
             {
                 if (_client == null || _client.Connected == false)
                 {
+                    Debug.LogError("Failed to write data!");
                     return;
                 }
 

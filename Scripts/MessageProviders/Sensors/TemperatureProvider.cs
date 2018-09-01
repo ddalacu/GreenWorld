@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
+﻿using GreenProject.Messages;
 using GreenProject.Sensors.Temperature;
 using JetBrains.Annotations;
 using UnityEngine;
@@ -24,10 +21,10 @@ public class TemperatureProvider : MonoBehaviour
 
     private void Awake()
     {
-        GreenWorld.AddMessageListener<GetTemperatureMessage>(TemperatureRequestListener);
+        GreenWorld.AddMessageListener(TemperatureRequestListener,typeof(GetTemperatureMessage));
     }
 
-    private void TemperatureRequestListener(GreenWorld.AdapterListener adapter, GetTemperatureMessage networkMessage)
+    private void TemperatureRequestListener(GreenWorld.AdapterListener adapter, INetworkMessage networkMessage)
     {
         Debug.Log("Temperature request!");
         GreenWorld.SendMessage(adapter, new TemperatureResponseMessage(temperature));

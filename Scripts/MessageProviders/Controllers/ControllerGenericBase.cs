@@ -1,17 +1,12 @@
-﻿using GreenProject.Controllers;
-using UnityEngine;
-
-public abstract class ControllerBase : MonoBehaviour
-{
-    public int ControllerIdentifier;
-
-    public abstract void DoRequest(ControllerManager manager, GreenWorld world,
-        GreenWorld.AdapterListener adapterListener,
-        ControllerInputData inputData);
-}
+﻿using System;
+using GreenProject.Controllers;
 
 public abstract class ControllerGenericBase<T> : ControllerBase where T: ControllerInputData
 {
+    public override Type GetDataType()
+    {
+        return typeof(T);
+    }
 
     public override void DoRequest(ControllerManager manager, GreenWorld world, GreenWorld.AdapterListener adapterListener,
         ControllerInputData inputData)

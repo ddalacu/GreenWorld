@@ -1,14 +1,15 @@
-﻿using GreenProject.Controllers;
-
-[System.Serializable]
-public class ArmControllerInputData : ControllerInputData
+﻿namespace GreenProject.Controllers
 {
-    public float X;
-    public float Y;
-    public float Z;
-
-    public override string ToString()
+    [System.Serializable]
+    public class ArmControllerInputData : ControllerInputData
     {
-        return $"x:{X} y:{Y} z:{Z}";
+        public float X;
+        public float Y;
+        public float Z;
+
+        public override string ToString()
+        {
+            return $"x:{X} y:{Y} z:{Z}";
+        }
     }
 }

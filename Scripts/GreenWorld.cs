@@ -16,7 +16,7 @@ public partial class GreenWorld : MonoBehaviour
 
     private readonly List<ReceiveListener> _messageListeners = new List<ReceiveListener>();
 
-    public delegate void MessageReceived<T>(AdapterListener adapter, T networkMessage) where T : class, INetworkMessage;
+    public delegate void MessageReceived(AdapterListener adapter, INetworkMessage networkMessage);
 
     public class ReceiveListener
     {
@@ -81,10 +81,10 @@ public partial class GreenWorld : MonoBehaviour
         return headerBuffer;
     }
 
-    public void SendMessage<T>(AdapterListener adapterListener, T message) where T : INetworkMessage
+    public void SendMessage(AdapterListener adapterListener, INetworkMessage message)
     {
         byte[] serializeData = message.SerializeData();
-        byte[] headerBytes = GetHeaderData(MessageExtensions.GetMessageUniqueIdentifier<T>(), serializeData.Length);
+        byte[] headerBytes = GetHeaderData(MessageExtensions.GetInt64HashCode(message.GetType().FullName), serializeData.Length);
         adapterListener.WriteData(headerBytes);
         adapterListener.WriteData(serializeData);
     }
@@ -93,9 +93,8 @@ public partial class GreenWorld : MonoBehaviour
     /// <summary>
     /// Removes a listener
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public bool RemoveMessageListener<T>(MessageReceived<T> listener) where T : class, INetworkMessage, new()
+    public bool RemoveMessageListener(MessageReceived listener)
     {
         int index = _messageListeners.FindIndex((a) => a.MessageReceived == (Delegate)listener);
         if (index != -1)
@@ -109,14 +108,18 @@ public partial class GreenWorld : MonoBehaviour
     /// <summary>
     /// Adds a listener
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public void AddMessageListener<T>(MessageReceived<T> listener) where T : class, INetworkMessage, new()
+    public void AddMessageListener(MessageReceived listener, Type messageType)
     {
+        if (typeof(INetworkMessage).IsAssignableFrom(messageType) == false)
+        {
+            throw new Exception(messageType + " should be assignable from message type!");
+        }
+
         ReceiveListener entry = new ReceiveListener
         {
             MessageReceived = listener,
-            MessageUniqueIdentifier = MessageExtensions.GetMessageUniqueIdentifier<T>(),
-            MessageType = typeof(T)
+            MessageUniqueIdentifier = MessageExtensions.GetInt64HashCode(messageType.FullName),
+            MessageType = messageType
         };
 
         _messageListeners.Add(entry);
@@ -148,7 +151,7 @@ public partial class GreenWorld : MonoBehaviour
         int cPos = 0;
         uint lo = (uint)(buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
         uint hi = (uint)(buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
-        typeIdentifier = (long)((ulong)hi) << 32 | lo;
+        typeIdentifier = (long)hi << 32 | lo;
         messageLength = (buffer[cPos++] | buffer[cPos++] << 8 | buffer[cPos++] << 16 | buffer[cPos++] << 24);
     }
 
@@ -202,8 +205,10 @@ public partial class GreenWorld : MonoBehaviour
                         if (_messageListeners[i].MessageUniqueIdentifier == typeIdentifier)
                         {
                             INetworkMessage networkMessage = Activator.CreateInstance(_messageListeners[i].MessageType) as INetworkMessage;
+                            if (networkMessage == null)
+                                throw new ArgumentNullException(nameof(networkMessage));
                             networkMessage.DeserializeData(message);
-                            _messageListeners[i].MessageReceived.DynamicInvoke(adapterListener,networkMessage);
+                            _messageListeners[i].MessageReceived.DynamicInvoke(adapterListener, networkMessage);
                             handled = true;
                         }
                     }

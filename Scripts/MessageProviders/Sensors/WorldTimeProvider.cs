@@ -14,10 +14,10 @@ public class WorldTimeProvider : MonoBehaviour
     [UsedImplicitly]
     private void Awake()
     {
-        GreenWorld.AddMessageListener<TimeRequestMessage>(RequestedTime);
+        GreenWorld.AddMessageListener(RequestedTime,typeof(TimeRequestMessage));
     }
 
-    private void RequestedTime(GreenWorld.AdapterListener adapterListener, TimeRequestMessage networkmessage)
+    private void RequestedTime(GreenWorld.AdapterListener adapterListener, INetworkMessage message)
     {
         Debug.Log("Time was requested!");
         GreenWorld.SendMessage(adapterListener, new TimeResponseMessage(WorldTime.CurrentTime));

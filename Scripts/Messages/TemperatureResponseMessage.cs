@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using GreenProject.Messages;
 
-namespace GreenProject.Sensors.Temperature
+namespace GreenProject.Messages
 {
     public class TemperatureResponseMessage : INetworkMessage
     {

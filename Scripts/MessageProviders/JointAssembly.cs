@@ -230,6 +230,7 @@ public class JointAssembly : MonoBehaviour
 
     private void Update()
     {
+
         if (localTarget != Vector3.zero && completed != null)
         {
             float iterations = 100;
@@ -241,8 +242,6 @@ public class JointAssembly : MonoBehaviour
             Quaternion targetRot = Quaternion.LookRotation(localTarget);
 
             Debug.DrawLine(firstJoint.transform.position, firstJoint.transform.position + localTarget);
-
-            // float targetAngle = Mathf.Clamp(targetRot.eulerAngles.y, firstJoint.minAngle, firstJoint.maxAngle);
 
             float last = firstJoint.angle;
             firstJoint.angle = Mathf.MoveTowardsAngle(firstJoint.angle, targetRot.eulerAngles.y, maxAngularSpeed);
@@ -262,12 +261,14 @@ public class JointAssembly : MonoBehaviour
                 float distance = GetEndPointDistance(joints, localTarget);
                 if (distance > 0.01f)
                 {
-                    completed(false);
+                    Debug.Log("Could not reach target point!");
+                    completed?.Invoke(false);
                     completed = null;
                 }
                 else
                 {
-                    completed(true);
+                    Debug.Log("Reached target point!");
+                    completed?.Invoke(true);
                     completed = null;
                 }
             }

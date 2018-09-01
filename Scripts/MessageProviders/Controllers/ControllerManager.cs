@@ -14,7 +14,7 @@ public class ControllerManager : MonoBehaviour
     private void Start()
     {
         HashSet<ControllerBase> duplicateCheck = new HashSet<ControllerBase>();
-
+        HashSet<Type> dataTypes = new HashSet<Type>();
         int length = ControllersGeneric.Length;
 
         for (int i = 0; i < length; i++)
@@ -24,13 +24,23 @@ public class ControllerManager : MonoBehaviour
                 Debug.Log("Duplicate controllerGeneric ids");
                 break;
             }
+            Debug.Log(ControllersGeneric[i].GetDataType());
+            dataTypes.Add(ControllersGeneric[i].GetDataType());
         }
 
-        GreenWorld.AddMessageListener<ControllerInputData>(Listener);
+        foreach (var dataType in dataTypes)
+        {
+            GreenWorld.AddMessageListener(Listener, dataType);
+        }
+
     }
 
-    private void Listener(GreenWorld.AdapterListener adapter, ControllerInputData inputData)
+    private void Listener(GreenWorld.AdapterListener adapter, INetworkMessage networkMessage)
     {
+        ControllerInputData inputData = networkMessage as ControllerInputData;
+
+        if (inputData == null)
+            throw new ArgumentNullException(nameof(inputData));
 
         Debug.Log("Got controllerGeneric message !");
 
