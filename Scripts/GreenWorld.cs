@@ -50,10 +50,11 @@ public partial class GreenWorld : MonoBehaviour
     [UsedImplicitly]
     private void OnDestroy()
     {
-        foreach (var item in _adapterListeners)
+        foreach (var adapterListener in _adapterListeners)
         {
-            item.Close();
+            adapterListener.Close();
         }
+        _adapterListeners.Clear();
     }
 
     /// <summary>
@@ -80,6 +81,7 @@ public partial class GreenWorld : MonoBehaviour
         headerBuffer[index++] = (byte)(messageLength >> 24);
         return headerBuffer;
     }
+
 
     public void SendMessage(AdapterListener adapterListener, INetworkMessage message)
     {

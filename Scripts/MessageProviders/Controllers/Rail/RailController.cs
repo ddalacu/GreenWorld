@@ -111,13 +111,13 @@ public class RailController : ControllerGenericBase<RailInputData>
 
     private void OnDrawGizmos()
     {
-        Gizmos.color = Color.yellow;
+        Gizmos.color = new Color(0,1,1,0.5f);
 
         if (IsTouchingEnd())
-            Gizmos.color = Color.red;
+            Gizmos.color = new Color(1, 0, 0, 0.5f);
 
         if (IsTouchingStart())
-            Gizmos.color = Color.green;
+            Gizmos.color = new Color(0, 1, 0, 0.5f);
 
         Gizmos.DrawCube(transform.position + transform.forward * ((RailLength / 2) + (RailEndSize / 2)), new Vector3(20, 20, RailEndSize));
         Gizmos.DrawCube(transform.position - transform.forward * ((RailLength / 2) + (RailEndSize / 2)), new Vector3(20, 20, RailEndSize));
